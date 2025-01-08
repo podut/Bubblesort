@@ -1,94 +1,106 @@
 import tkinter as tk
-from tkinter import messagebox
 import random
 import time
 import threading
 
-class SortingVisualizer:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Sorting Algorithms Visualizer")
-        self.num_elements = 50  # numărul inițial de elemente
-        self.speed = 0.1  # viteza animației
-        self.array = []
-        self.is_sorting = False  # Flag pentru a verifica dacă sortarea este în curs
-        self.canvas = tk.Canvas(root, width=600, height=400)
-        self.canvas.pack()
+# Global variables
+array = []
+is_sorting = False
+speed = 0.1
+stop_sorting = False  # Flag pentru a opri sortarea
 
-        # Creăm un slider pentru a schimba numărul de elemente
-        self.num_elements_slider = tk.Scale(root, from_=5, to_=100, orient="horizontal", label="Numărul de elemente")
-        self.num_elements_slider.set(self.num_elements)
-        self.num_elements_slider.pack()
+def reset_array():
+    global array, is_sorting, stop_sorting
+    if is_sorting:
+        stop_sorting = True  # Oprim sortarea dacă este activă
+    is_sorting = False  # Oprim sortarea
+    stop_sorting = False  # Resetăm stop flag
+    num_elements = num_elements_slider.get()
+    array = [random.randint(10, 300) for _ in range(num_elements)]
+    update_canvas()
 
-        # Creăm un slider pentru a schimba viteza animației
-        self.speed_slider = tk.Scale(root, from_=0.01, to_=0.5, orient="horizontal", label="Viteza animației", resolution=0.01)
-        self.speed_slider.set(self.speed)
-        self.speed_slider.pack()
+def update_canvas():
+    canvas.delete("all")
+    width = 600
+    bar_width = width / len(array)
+    for i, value in enumerate(array):
+        canvas.create_rectangle(i * bar_width, 400 - value, (i + 1) * bar_width, 400, fill="blue")
 
-        # Creăm o etichetă care va afișa valoarea curentă a vitezei
-        self.speed_label = tk.Label(root, text=f"Viteza: {self.speed}")
-        self.speed_label.pack()
+def update_speed_label(event):
+    global speed
+    speed = speed_slider.get()
+    speed_label.config(text=f"Viteza: {speed}")
 
-        # Butoane pentru a începe și a opri sortarea
-        self.start_button = tk.Button(root, text="Start Sortare", command=self.start_sorting)
-        self.start_button.pack()
+def bubble_sort():
+    global array, is_sorting, stop_sorting
+    arr = array[:]
+    n = len(arr)
+    for i in range(n):
+        if stop_sorting:  # Verificăm dacă trebuie să oprim sortarea
+            break
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+                array = arr
+                # Folosim root.after() pentru a actualiza UI-ul din main thread
+                root.after(0, update_canvas)
+                root.after(0, root.update_idletasks)  # Actualizează interfața
+                time.sleep(speed)
+    is_sorting = False  # Oprim sortarea
+    stop_sorting = False  # Resetăm stop flag
 
-        self.reset_button = tk.Button(root, text="Resetare", command=self.reset_array)
-        self.reset_button.pack()
+def start_sorting():
+    global is_sorting, stop_sorting
+    if not is_sorting and not stop_sorting:
+        is_sorting = True
+        threading.Thread(target=bubble_sort, daemon=True).start()  # Rulăm sortarea într-un thread separat
 
-        self.quit_button = tk.Button(root, text="Ieșire", command=root.quit)
-        self.quit_button.pack()
+def stop_sorting_func():
+    global stop_sorting
+    stop_sorting = True  # Setăm stop flag pentru a opri sortarea
 
-        self.reset_array()
+root = tk.Tk()
+root.title("Sorting Algorithms Visualizer")
 
-        # Actualizarea etichetei de viteză în timp real
-        self.speed_slider.bind("<Motion>", self.update_speed_label)
+# Slider pentru numărul de elemente
+num_elements_slider = tk.Scale(root, from_=5, to_=100, orient="horizontal", label="Numărul de elemente")
+num_elements_slider.set(50)
+num_elements_slider.pack()
 
-    def reset_array(self):
-        # Oprim sortarea în cazul în care este activă
-        if self.is_sorting:
-            self.is_sorting = False
-        # Resetăm array-ul și actualizăm canvas-ul
-        self.num_elements = self.num_elements_slider.get()
-        self.speed = self.speed_slider.get()
-        self.array = [random.randint(10, 300) for _ in range(self.num_elements)]
-        self.update_canvas()
+# Slider pentru viteza animației
+speed_slider = tk.Scale(root, from_=0.01, to_=0.5, orient="horizontal", label="Viteza animației", resolution=0.01)
+speed_slider.set(0.1)
+speed_slider.pack()
 
-    def update_canvas(self):
-        self.canvas.delete("all")
-        width = 600
-        bar_width = width / len(self.array)
-        for i, value in enumerate(self.array):
-            self.canvas.create_rectangle(i * bar_width, 400 - value, (i + 1) * bar_width, 400, fill="blue")
+# Etichetă pentru a arăta viteza curentă
+speed_label = tk.Label(root, text="Viteza: 0.1")
+speed_label.pack()
 
-    def update_speed_label(self, event):
-        """Actualizează eticheta vitezei în timp real pe măsură ce slider-ul este ajustat."""
-        self.speed = self.speed_slider.get()
-        self.speed_label.config(text=f"Viteza: {self.speed}")
+# Buton pentru a începe sortarea
+start_button = tk.Button(root, text="Start Sortare", command=start_sorting)
+start_button.pack()
 
-    def bubble_sort(self):
-        arr = self.array[:]
-        n = len(arr)
-        for i in range(n):
-            if not self.is_sorting:
-                break  # Opriți sortarea dacă butonul de reset a fost apăsat
-            for j in range(0, n-i-1):
-                if arr[j] > arr[j+1]:
-                    arr[j], arr[j+1] = arr[j+1], arr[j]
-                    self.array = arr
-                    self.update_canvas()
-                    self.root.update_idletasks()  # Refresh the UI
-                    self.speed = self.speed_slider.get()  # Actualizăm viteza în timpul sortării
-                    time.sleep(self.speed)
+# Buton pentru a reseta array-ul
+reset_button = tk.Button(root, text="Resetare", command=reset_array)
+reset_button.pack()
 
-        self.is_sorting = False  # Setăm flag-ul să fie fals când sortarea se încheie
+# Buton pentru a opri sortarea
+stop_button = tk.Button(root, text="Stop Sortare", command=stop_sorting_func)
+stop_button.pack()
 
-    def start_sorting(self):
-        if not self.is_sorting:
-            self.is_sorting = True
-            threading.Thread(target=self.bubble_sort).start()  # Rulăm sortarea într-un thread separat
+# Buton pentru a ieși din aplicație
+quit_button = tk.Button(root, text="Ieșire", command=root.quit)
+quit_button.pack()
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    visualizer = SortingVisualizer(root)
-    root.mainloop()
+# Canvas pentru a vizualiza sortarea
+canvas = tk.Canvas(root, width=600, height=400)
+canvas.pack()
+
+# Inițializăm array-ul
+reset_array()
+
+# Actualizăm eticheta de viteză în timp real
+speed_slider.bind("<Motion>", update_speed_label)
+
+# Pornim loop-ul principal Tkinter
+root.mainloop()
